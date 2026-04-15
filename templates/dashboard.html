@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Admin Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 250px; background-color: #343a40; color: white; padding: 1.5rem; }
+        .sidebar h2 { margin-bottom: 2rem; font-size: 1.5rem; }
+        .sidebar a { display: block; color: #adb5bd; text-decoration: none; padding: 0.8rem 0; font-size: 1.1rem; }
+        .sidebar a:hover { color: white; }
+        .content { flex: 1; padding: 2rem; background-color: #f8f9fa; }
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stats { display: flex; gap: 1rem; margin-top: 1rem; }
+        .stat-item { background: #e9ecef; padding: 1rem; border-radius: 4px; flex: 1; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>IT Admin</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/users">Manage Users</a>
+        <a href="/login" style="margin-top: auto;">Logout</a>
+    </div>
+    <div class="content">
+        <h1>Dashboard Overview</h1>
+        <div class="card">
+            <p>Welcome to the IT Support Admin Panel. From here you can manage user accounts and system settings.</p>
+            <div class="stats">
+                <div class="stat-item">
+                    <div>Total Users</div>
+                    <div class="stat-value">{{ user_count }}</div>
+                </div>
+                <div class="stat-item">
+                    <div>System Status</div>
+                    <div class="stat-value" style="color: #28a745;">Active</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
