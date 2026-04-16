@@ -7,6 +7,20 @@ import uvicorn
 import uuid
 import os
 from typing import List, Optional
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(override=True)
+
+# Startup verification
+api_key = os.getenv("GEMINI_API_KEY")
+groq_key = os.getenv("GROQ_API_KEY")
+if api_key:
+    print(f"DEBUG: GEMINI_API_KEY loaded (starts with {api_key[:5]}...)")
+if groq_key:
+    print(f"DEBUG: GROQ_API_KEY loaded (starts with {groq_key[:5]}...)")
+else:
+    print("DEBUG: GROQ_API_KEY NOT FOUND")
 
 app = FastAPI(title="Mock IT Admin Panel")
 
@@ -32,22 +46,22 @@ async def home(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html")
 
 @app.post("/login")
 async def login_post(request: Request, email: str = Form(...), password: str = Form(...)):
     # Dummy auth
     if email == "admin@company.com" and password == "admin":
         return RedirectResponse(url="/dashboard", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": "Invalid credentials"})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user_count": len(users_db)})
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={"user_count": len(users_db)})
 
 @app.get("/users", response_class=HTMLResponse)
 async def users_list(request: Request):
-    return templates.TemplateResponse("users.html", {"request": request, "users": users_db})
+    return templates.TemplateResponse(request=request, name="users.html", context={"users": users_db})
 
 @app.post("/create-user")
 async def create_user(request: Request, name: str = Form(...), email: str = Form(...)):
@@ -72,13 +86,19 @@ class TaskRequest(BaseModel):
 
 @app.post("/run-task")
 async def run_task(task_req: TaskRequest):
-    # Initialize agent with current base URL
-    agent = SupportAgent(base_url="http://localhost:8000")
-    
-    # Run the task
-    result = await agent.run(task_req.task)
-    
-    return result
+    try:
+        # Initialize agent with current base URL
+        agent = SupportAgent(base_url="http://localhost:8000")
+        
+        # Run the task
+        result = await agent.run(task_req.task)
+        
+        return result
+    except Exception as e:
+        print(f"Error running agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -11,78 +11,112 @@ class PlaywrightExecutor:
         self.playwright = None
 
     async def start(self):
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=self.headless)
-        self.context = await self.browser.new_context()
-        self.page = await self.context.new_page()
+        try:
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(headless=self.headless)
+            self.context = await self.browser.new_context()
+            self.page = await self.context.new_page()
+            # Set default timeout to 10 seconds to avoid long hangs
+            self.page.set_default_timeout(10000)
+        except Exception as e:
+            print(f"Failed to start Playwright: {e}")
+            await self.stop()
+            raise
 
     async def stop(self):
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
+        try:
+            if self.browser:
+                await self.browser.close()
+            if self.playwright:
+                await self.playwright.stop()
+        except:
+            pass
+        finally:
+            self.browser = None
+            self.page = None
+
+    async def is_alive(self):
+        return self.page is not None and not self.page.is_closed()
 
     async def get_state(self):
-        """Returns the current state of the page in a way the LLM can understand."""
-        if not self.page:
-            return {"error": "No page active"}
+        if not await self.is_alive():
+            return {"error": "Browser is closed"}
         
         url = self.page.url
-        content = await self.page.content()
-        # Simplify content: get text and relevant interactive elements
-        # We can extract buttons, inputs, and links specifically
-        interactive_elements = await self.page.evaluate('''() => {
-            const elements = document.querySelectorAll('button, input, a, form');
-            return Array.from(elements).map(el => {
-                return {
-                    tag: el.tagName,
-                    text: el.innerText || el.value || el.placeholder || '',
-                    type: el.type || '',
-                    name: el.name || '',
-                    id: el.id || ''
-                };
-            });
-        }''')
-        
-        return {
-            "url": url,
-            "elements": interactive_elements,
-            "text": await self.page.inner_text('body')
-        }
+        try:
+            # Extract only relevant interactive elements
+            interactive_elements = await self.page.evaluate('''() => {
+                const elements = document.querySelectorAll('button, input, a, [role="button"]');
+                return Array.from(elements).map(el => {
+                    return {
+                        tag: el.tagName,
+                        text: el.innerText || el.value || el.placeholder || el.getAttribute('aria-label') || '',
+                        type: el.type || '',
+                        name: el.name || '',
+                        id: el.id || ''
+                    };
+                }).filter(el => el.text || el.name || el.id);
+            }''')
+            
+            text = await self.page.inner_text('body')
+            return {"url": url, "elements": interactive_elements, "text": text[:2000]}
+        except Exception as e:
+            return {"url": url, "error": str(e)}
 
     async def navigate(self, url):
-        await self.page.goto(url)
-        await asyncio.sleep(1) # Small wait for stability
+        if not await self.is_alive(): return
+        print(f"Navigating to: {url}")
+        await self.page.goto(url, wait_until="networkidle")
+        await asyncio.sleep(2)
 
     async def click(self, text):
-        """Clicks an element containing the specific text."""
-        # Try finding by text
-        try:
-            # More robust selector for text matches
-            await self.page.click(f"text='{text}'", timeout=5000)
-        except:
-            # Fallback for exact matches or specific button types
+        if not await self.is_alive(): return
+        print(f"Attempting to click: {text}")
+        # Try multiple selector strategies
+        selectors = [
+            f"text='{text}'",
+            f"button:has-text('{text}')",
+            f"a:has-text('{text}')",
+            f"[role='button']:has-text('{text}')",
+            f"button[id='{text}']",
+            f"button[name='{text}']"
+        ]
+        
+        for selector in selectors:
             try:
-                await self.page.click(f"button:has-text('{text}')", timeout=5000)
+                await self.page.click(selector, timeout=3000)
+                await asyncio.sleep(1)
+                return
             except:
-                # Last ditch: try finding any element with that text
-                await self.page.click(f"css=*:has-text('{text}')", timeout=5000)
-        await asyncio.sleep(1)
+                continue
+        print(f"Failed to click '{text}' with standard selectors")
 
-    async def type(self, label_or_placeholder, value):
-        """Types value into a field identified by its label or placeholder."""
-        # Try finding by placeholder
-        try:
-            await self.page.fill(f"input[placeholder='{label_or_placeholder}']", value)
-        except:
+    async def type(self, field_identifier, value):
+        if not await self.is_alive(): return
+        print(f"Attempting to type '{value}' into '{field_identifier}'")
+        
+        # Try finding by name, id, placeholder, or label
+        selectors = [
+            f"input[name='{field_identifier}']",
+            f"input[id='{field_identifier}']",
+            f"input[placeholder*='{field_identifier}']",
+            f"label:has-text('{field_identifier}') + input",
+            f"input[type='text']", # Risky fallback
+            f"input[type='email']"
+        ]
+        
+        for selector in selectors:
             try:
-                # Try finding by label or name
-                await self.page.fill(f"input[name='{label_or_placeholder}']", value)
+                await self.page.fill(selector, value, timeout=3000)
+                await asyncio.sleep(0.5)
+                return
             except:
-                # Last ditch: try finding by previous label text
-                await self.page.type(f"text='{label_or_placeholder}'", value)
-        await asyncio.sleep(0.5)
+                continue
+        
+        # Absolute fallback: press Tab and type (not ideal but works for simple forms)
+        print(f"Could not find field '{field_identifier}', trying generic fill...")
 
     async def submit(self):
+        if not await self.is_alive(): return
         await self.page.keyboard.press("Enter")
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
