@@ -47,19 +47,35 @@ BASE_URL=http://localhost:8000
 
 ---
 
-## ⚡ Quick Start (The Easy Way)
+## ⚡ Quick Start (General Tasks)
 
-Use the `automate.py` script to run the backend and the agent simultaneously with a single command. The script will automatically clean up the backend process when finished.
+Use the `automate.py` script to run any task using Natural Language.
 
 ```bash
 python automate.py "Create a user named Alice with email alice@company.com"
 ```
 
-**What happens next?**
-1.  The **Backend** starts automatically.
-2.  The **AI Agent** wakes up and receives your task.
-3.  A **Browser window opens**, and you watch the agent log in and perform the task.
-4.  The script provides a summary and shuts everything down.
+---
+
+## 🔑 Direct Command Shortcuts (Reset Password)
+
+If you only want to reset a password, you can use these simplified commands directly:
+
+### Windows (Fastest)
+```bash
+reset.bat john@company.com
+```
+
+### Python
+```bash
+python reset_password.py john@company.com
+```
+
+**What these do:**
+1.  Automatically starts the Backend.
+2.  Instructs the AI Agent to: **"Reset password for [email]"**.
+3.  Performs the login, navigation, and button click.
+4.  Shuts down everything once done.
 
 ---
 
