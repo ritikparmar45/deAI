@@ -7,3 +7,4 @@ jinja2
 python-multipart
 google-genai
 groq
+requests

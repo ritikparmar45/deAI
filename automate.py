@@ -16,27 +16,29 @@ def start_backend():
     # Using 'sys.executable -m backend.main' to ensure we use the same python interpreter
     process = subprocess.Popen(
         [sys.executable, "-m", "backend.main"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
         # On windows, we need to handle termination carefully
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
     )
     return process
 
-def wait_for_server(url="http://localhost:8000/login", timeout=15):
+def wait_for_server(url="http://127.0.0.1:8000/login", timeout=30):
     """Waits for the server to be ready."""
-    print("⏳ Waiting for server to be ready...")
+    print("⏳ Waiting for server to be ready (Timeout: 30s)...")
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=2)
             if response.status_code == 200:
                 print("✅ Server is UP!")
                 return True
-        except:
+        except requests.exceptions.ConnectionError:
+            # Expected during startup
             pass
+        except Exception as e:
+            print(f"  (Wait Debug: {e})")
         time.sleep(1)
+        if int(time.time() - start_time) % 5 == 0:
+            print(f"  ...still waiting ({int(time.time() - start_time)}s)")
     return False
 
 async def run_automate(task_text):
@@ -53,7 +55,7 @@ async def run_automate(task_text):
         # 3. Initialize Agent
         print(f"🤖 Agent is taking over for task: '{task_text}'")
         # We run it with headless=False so you can see it working "apne aap"
-        agent = SupportAgent(base_url="http://localhost:8000", headless=False)
+        agent = SupportAgent(base_url="http://127.0.0.1:8000", headless=False)
         
         # 4. Run the task
         result = await agent.run(task_text)
