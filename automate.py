@@ -12,7 +12,7 @@ load_dotenv(override=True)
 
 def start_backend():
     """Starts the FastAPI backend in a separate process."""
-    print("🚀 Starting Mock IT Admin Panel (Backend)...")
+    print(">> Starting Mock IT Admin Panel (Backend)...")
     # Using 'sys.executable -m backend.main' to ensure we use the same python interpreter
     process = subprocess.Popen(
         [sys.executable, "-m", "backend.main"],
@@ -23,13 +23,13 @@ def start_backend():
 
 def wait_for_server(url="http://127.0.0.1:8000/login", timeout=30):
     """Waits for the server to be ready."""
-    print("⏳ Waiting for server to be ready (Timeout: 30s)...")
+    print("... Waiting for server to be ready (Timeout: 30s)...")
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
             response = requests.get(url, timeout=2)
             if response.status_code == 200:
-                print("✅ Server is UP!")
+                print("[OK] Server is UP!")
                 return True
         except requests.exceptions.ConnectionError:
             # Expected during startup
@@ -49,11 +49,11 @@ async def run_automate(task_text):
         
         # 2. Wait for it
         if not wait_for_server():
-            print("❌ Error: Server failed to start in time.")
+            print("[ERROR] Server failed to start in time.")
             return
 
         # 3. Initialize Agent
-        print(f"🤖 Agent is taking over for task: '{task_text}'")
+        print(f"[AGENT] Taking over for task: '{task_text}'")
         # We run it with headless=False so you can see it working "apne aap"
         agent = SupportAgent(base_url="http://127.0.0.1:8000", headless=False)
         
@@ -69,16 +69,16 @@ async def run_automate(task_text):
         print("="*30)
 
     except Exception as e:
-        print(f"❌ Unexpected Error: {e}")
+        print(f"[ERROR] Unexpected Error: {e}")
     finally:
         if backend_process:
-            print("🛑 Shutting down backend...")
+            print("[SHUTDOWN] Shutting down backend...")
             if os.name == 'nt':
                 # On Windows, taskkill is more reliable for process groups
                 subprocess.run(['taskkill', '/F', '/T', '/PID', str(backend_process.pid)], capture_output=True)
             else:
                 os.killpg(os.getpgid(backend_process.pid), signal.SIGTERM)
-            print("👋 All cleaned up!")
+            print("[DONE] All cleaned up!")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
